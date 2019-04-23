@@ -1,0 +1,17 @@
+﻿Build started 20/04/2019 16:05:32.
+     1>Project "C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\Space_filling_tree\Space_filling_tree.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /Od /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc110.pdb" /Gd /TP /errorReport:prompt lung_segmentation.cpp
+         lung_segmentation.cpp
+     1>lung_segmentation.cpp(342): warning C4267: 'argument' : conversion from 'size_t' to 'const long', possible loss of data
+     1>lung_segmentation.cpp(387): warning C4244: 'argument' : conversion from 'time_t' to 'unsigned int', possible loss of data
+     1>lung_segmentation.cpp(559): warning C4267: 'initializing' : conversion from 'size_t' to 'long', possible loss of data
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\x64\Debug\Space_filling_tree.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\x64\Debug\Space_filling_tree.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\x64\Debug\Space_filling_tree.lib" /MACHINE:X64 x64\Debug\lung_segmentation.obj
+         x64\Debug\main.obj
+         Space_filling_tree.vcxproj -> C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\x64\Debug\Space_filling_tree.exe
+     1>Done Building Project "C:\Users\mbesscw5\Documents\GitHub\Space_filling_tree\Space_filling_tree\Space_filling_tree\Space_filling_tree.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:04.25
