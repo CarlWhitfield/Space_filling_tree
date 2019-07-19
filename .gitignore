@@ -8,3 +8,6 @@
 *.sdf
 *.suo
 *.vcxproj
+*.sln
+*.filters
+*.user
