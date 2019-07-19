@@ -7,7 +7,8 @@ int main(int argc, char *argv[])
 	
 	seg.build_tree();
 	
-	if(seg.tree->print_vtk("test", 1.0)) return 1;
+	if(seg.tree->print_vtk("vis", 1.0)) return 1;
+	if(seg.tree->print_files_for_input("tree", 1.0)) return 1;
 
 	return 0;
 }

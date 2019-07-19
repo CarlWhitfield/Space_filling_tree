@@ -79,7 +79,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Users\mbesscw5\Documents\GitHub\stl_reader;C:\Users\mbesscw5\Documents\GitHub\Object_oriented_lung_model\Network_lung_model\Network_lung_model;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\mbesscw5\Documents\GitHub\Tube-network-headers;C:\Users\mbesscw5\Documents\GitHub\stl_reader;C:\Users\mbesscw5\Documents\GitHub\Object_oriented_lung_model\Network_lung_model\Network_lung_model;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

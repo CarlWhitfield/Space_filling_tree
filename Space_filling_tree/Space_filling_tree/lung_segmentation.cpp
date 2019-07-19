@@ -193,7 +193,6 @@ bool LobeMesh::is_in(const network::Position & pos)
 	else return false;
 }
 
-
 LungSegOptions::LungSegOptions():OptionList<bool,char>()
 {
 	//bool
@@ -425,6 +424,7 @@ void LungSegmentation::build_tree()
 	//sort out network
 	this->tree->update_node_edge_maps();
 	if(this->tree->reorder_network()) abort_on_failure();
+	this->tree->fill_in_radii();
 }
 
 size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const std::vector<network::Node*> & tnodes, 
@@ -525,12 +525,12 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 				if(!mesh->is_in(this->NodeVec.back()->get_pos()))
 				{
 					Position old_vec = this->NodeVec.back()->get_pos() - sn_position[isn];
-					double dl = 0.1;
-					while(!mesh->is_in(this->NodeVec.back()->get_pos()) && dl < 1.01)  //if not shorted it
+					double dl = 0.01;
+					while(!mesh->is_in(this->NodeVec.back()->get_pos()) && dl < 0.995)  //if not shorted it
 					{
 						Position new_vec = old_vec*(1 - dl);
 						this->NodeVec.back()->set_pos(sn_position[isn] + new_vec);
-						dl += 0.1;
+						dl += 0.01;
 					}
 					this->EdgeVec.back()->update_length();
 				}
@@ -576,7 +576,7 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 		this->update_node_edge_maps();
 
 		//print step-by-step output
-		this->print_step_by_step(start_node, sn_point_cloud, prev_iter + iter, mesh->get_id(), cloud_h);
+		//this->print_step_by_step(start_node, sn_point_cloud, prev_iter + iter, mesh->get_id(), cloud_h);
 		iter++;
 	}
 	
@@ -597,6 +597,60 @@ void LungSegNetwork::print_step_by_step(const std::vector<size_t> & end_nodes, c
 	//std::string fname = ss.str().c_str();
 
 	//output here
+}
+
+void LungSegNetwork::fill_in_radii()
+{
+	//loop over weibel orders, track order and radius of last ancestor that had one
+	std::vector<size_t> parent_horsfield_gen;
+	parent_horsfield_gen.resize(this->count_edges());
+	std::fill(parent_horsfield_gen.begin(), parent_horsfield_gen.end(), 0);
+	std::vector<double> parent_rad;
+	parent_rad.resize(this->count_edges());
+	std::fill(parent_rad.begin(), parent_rad.end(), 0);
+
+	for(size_t wo = 0; wo < this->count_weibel_orders(); wo++)
+	{
+		for(size_t iedge = 0; iedge < this->count_edges_in_weibel_order(wo); iedge++)
+		{
+			size_t j = this->get_edge_index_from_weibel_order(wo,iedge);   //j is edge index
+			if(this->get_edge(j)->get_geom()->get_inner_radius() > 100)
+			{
+					std::cout << j << ' ' << this->get_edge(j)->get_geom()->get_inner_radius() << ' ' 
+				                  << this->get_weibel_order(j) << ' '
+								  << this->get_horsfield_order(j) << '\n';
+			}
+
+			if(this->get_edge(j)->get_geom()->get_inner_radius() > 0)   //radius already defined
+			{			
+				for(size_t ieo = 0; ieo < this->count_edges_out(this->get_node_out_index(j)); ieo++)
+				{
+					//branch out index
+					size_t jo = this->get_edge_out_index(this->get_node_out_index(j), ieo);
+					//assign parent branches as this one
+					parent_horsfield_gen[jo] = this->get_horsfield_order(j);
+					parent_rad[jo] = this->get_edge(j)->get_geom()->get_inner_radius();
+				}
+			}
+			else
+			{
+				this->get_edge(j)->update_geometry(calc_radius(parent_horsfield_gen[j], parent_rad[j], 
+					                                           this->get_horsfield_order(j)),
+											       this->get_edge(j)->get_geom()->get_length());
+				for(size_t ieo = 0; ieo < this->count_edges_out(this->get_node_out_index(j)); ieo++)
+				{
+					//branch out index
+					size_t jo = this->get_edge_out_index(this->get_node_out_index(j), ieo);
+					//assign parent branches same as this one (i.e. last branch from CT)
+					parent_horsfield_gen[jo] = parent_horsfield_gen[j];
+					parent_rad[jo] = parent_rad[j];
+				}
+
+			}
+
+		}
+	}
+
 }
 
 std::vector<PointCloud*> PointCloud::partition_point_cloud(const std::vector<network::Position> & pos_to_be_assigned) const
@@ -686,4 +740,10 @@ network::Position new_angle_calc(const network::Position & prev_vec, const netwo
 	double check = pnew.angle(parent_dir);
 
 	return pnew;
+}
+
+double calc_radius(const size_t & pgen, const double & prad, const size_t & tgen)
+{
+	//radius scaling rule: function of ancestor generation and radius (from CT) and gen number here (tgen)
+	return (prad*pow(1.15, double(tgen) - double(pgen)));
 }

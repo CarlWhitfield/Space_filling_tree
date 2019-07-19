@@ -1,0 +1,10 @@
+
+*.log
+*.log
+*.obj
+*.pdb
+*.exe
+*.pdb
+*.sdf
+*.suo
+*.vcxproj

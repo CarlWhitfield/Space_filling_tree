@@ -90,6 +90,7 @@ public:
 				   const double & l_cutoff, const size_t & prev_iter);
 	void print_step_by_step(const std::vector<size_t> & end_nodes, const std::vector<PointCloud*> & pt_clouds, 
 		                          const size_t & num, const std::string lobe_id, const double & cloud_h) const;
+	void fill_in_radii();
 };
 
 class LungSegOptions: public inlist::OptionList<bool,char>
@@ -177,5 +178,7 @@ public:
 };
 
 network::Position new_angle_calc(const network::Position & old_vec, const network::Position & parent_dir, const double & max_angle);
+
+double calc_radius(const size_t & pgen, const double & prad, const size_t & tgen);
 
 #endif
