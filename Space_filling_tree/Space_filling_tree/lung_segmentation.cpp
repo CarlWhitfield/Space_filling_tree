@@ -20,6 +20,7 @@
 
 void PointCloud::remove_closest_point( const network::Position & pos)
 {
+	//removes point closest to pos from the point cloud
 	size_t i_min = 0;
 	double dist_min = this->cloud[0]->distance(pos);
 	for(size_t ipt = 1; ipt < this->cloud.size(); ipt++)
@@ -53,6 +54,7 @@ LobeMesh::LobeMesh(const std::string & fname, const size_t & Nbins):StlMesh<doub
 	for(size_t ntri = 0; ntri < this->num_tris(); ntri++)   //loop over stl file triangles
 	{
 		double x_centroid = 0;
+		//record the smallest x y and z values
 		for(size_t corner = 0; corner < 3; corner++)
 		{
 			network::Position p = this->get_tri_corner_coords(ntri, corner);
@@ -78,16 +80,19 @@ LobeMesh::LobeMesh(const std::string & fname, const size_t & Nbins):StlMesh<doub
 		}
 
 		network::Position norm = this->get_tri_normal(ntri);
+		//get side lengths
 		double l[3];
 		l[0] = (this->get_tri_corner_coords(ntri,1) - this->get_tri_corner_coords(ntri,0)).magnitude();
 		l[1] = (this->get_tri_corner_coords(ntri,2) - this->get_tri_corner_coords(ntri,0)).magnitude();
 		l[2] = (this->get_tri_corner_coords(ntri,2) - this->get_tri_corner_coords(ntri,1)).magnitude();
 		double s = 0.5*(l[0] + l[1] + l[2]);
+		//get area
 		double area = sqrt(s*(s - l[0])*(s - l[1])*(s - l[2]));
+		//add to volume sum
 		volume += norm.x[0] * x_centroid * area;
 	}
 
-	//bin into 100 by 100
+	//bin points into a grid in x and y
 	this->bin_spacing[0] = (1.001*this->maxpos.x[0] - this->minpos.x[0])/double(Nbins);
 	this->bin_spacing[1] = (1.001*this->maxpos.x[1] - this->minpos.x[1])/double(Nbins);
 	this->xy_binned_face_indices.clear();
@@ -114,18 +119,20 @@ LobeMesh::LobeMesh(const std::string & fname, const size_t & Nbins):StlMesh<doub
 
 bool LobeMesh::is_in(const network::Position & pos)
 {
+	//find if a point is inside a particular lobe
 	bool check = true;
 	for(size_t dim = 0; dim < 3; dim++)   //check if it is inside the binned grid
 	{
 		if(pos.x[dim] < this->minpos.x[dim] || pos.x[dim] > this->maxpos.x[dim]) check = false;
+		//std::cout << this->minpos.x[dim] << ' ' << this->maxpos.x[dim] << '\n';
 	}
-
 	size_t faces_crossed = 0;
 	if(check)
 	{
 		std::vector<size_t> p_ind = this->get_bin_coord(pos);
 		std::vector<size_t> reduced_tri_list;
 		reduced_tri_list.reserve(this->xy_binned_face_indices[p_ind[0]][p_ind[1]].size());
+		//get list of triangles that it might cross
 		for(size_t il = 0; il < this->xy_binned_face_indices[p_ind[0]][p_ind[1]].size(); il++)
 		{
 			size_t ntri = this->xy_binned_face_indices[p_ind[0]][p_ind[1]][il];
@@ -179,45 +186,59 @@ bool LobeMesh::is_in(const network::Position & pos)
 					{
 						double tot_angle = 0;
 						for(size_t nc = 0; nc < 3; nc++) tot_angle += u[nc].angle(u[(nc+1)%3]);
-						if(tot_angle > 2*M_PI - 1E-09 && tot_angle < 2*M_PI + 1E-09)
+						//std::cout << tot_angle << '\n';
+						if(tot_angle > 2*M_PI - 1E-03 && tot_angle < 2*M_PI + 1E-03)
 						{
 							faces_crossed++;
+							/*for(size_t nc = 0; nc < 3; nc++) std::cout << c[nc].x[0] << ' ' << c[nc].x[1] << ' ' << c[nc].x[2] << '\n';
+							std::cout << "\n";*/
 						}
 					}
 				}
 			}
 		}
 	}
-
+	//std::cout << faces_crossed << '\n';
 	if(faces_crossed % 2) return true;
 	else return false;
 }
 
 LungSegOptions::LungSegOptions():OptionList<bool,char>()
 {
+	//initialise options for running the code
 	//bool
-	this->add(PRUNE_TERM_BRANCHES_KEY, new inlist::Option<bool>(false, std::string(PRUNE_TERM_BRANCHES_KEY)));
-	this->add(REASSIGN_KEY, new inlist::Option<bool>(true, std::string(REASSIGN_KEY)));
+	std::shared_ptr<inlist::Option<bool>> pt = std::make_shared<inlist::Option<bool>>(false, std::string(PRUNE_TERM_BRANCHES_KEY));
+	std::shared_ptr<inlist::Option<bool>> ro = std::make_shared<inlist::Option<bool>>(true, std::string(REASSIGN_KEY));
+	this->add(PRUNE_TERM_BRANCHES_KEY, pt);
+	this->add(REASSIGN_KEY, ro);
 }
 
 LungSegParams::LungSegParams():ParameterList<int,double>()
 {
+	//initialise code parameters
+
 	//int
-	this->add(NUMBER_MESH_BINS_KEY, new inlist::Parameter<int>(100, std::string(NUMBER_MESH_BINS_KEY)));
-	this->add(ACINI_COUNT_KEY, new inlist::Parameter<int>(30000, std::string(ACINI_COUNT_KEY)));
+	std::shared_ptr<inlist::Parameter<int>> np = std::make_shared<inlist::Parameter<int>>(100, std::string(NUMBER_MESH_BINS_KEY));
+	std::shared_ptr<inlist::Parameter<int>> ac = std::make_shared<inlist::Parameter<int>>(30000, std::string(ACINI_COUNT_KEY));
+	this->add(NUMBER_MESH_BINS_KEY, np);
+	this->add(ACINI_COUNT_KEY, ac);
 
 	//double
-	this->add(DISTANCE_TO_COM_FACTOR_KEY, new inlist::Parameter<double>(0.4, std::string(DISTANCE_TO_COM_FACTOR_KEY)));
-	this->add(MAX_BRANCHING_ANGLE_KEY, new inlist::Parameter<double>(M_PI/3.0, std::string(MAX_BRANCHING_ANGLE_KEY)));
-	this->add(LENGTH_CUTOFF_MM_KEY, new inlist::Parameter<double>(1.0, std::string(LENGTH_CUTOFF_MM_KEY)));
+	std::shared_ptr<inlist::Parameter<double>> dcom = std::make_shared<inlist::Parameter<double>>(0.4, std::string(DISTANCE_TO_COM_FACTOR_KEY));
+	std::shared_ptr<inlist::Parameter<double>> mba = std::make_shared<inlist::Parameter<double>>(M_PI/3.0, std::string(MAX_BRANCHING_ANGLE_KEY));
+	std::shared_ptr<inlist::Parameter<double>> lc = std::make_shared<inlist::Parameter<double>>(1.0, std::string(LENGTH_CUTOFF_MM_KEY));
+	this->add(DISTANCE_TO_COM_FACTOR_KEY, dcom);
+	this->add(MAX_BRANCHING_ANGLE_KEY, mba);
+	this->add(LENGTH_CUTOFF_MM_KEY, lc);
 }
 
 LungSegmentation::LungSegmentation(int argc, char *argv[])
 {
+	//initialise segmentation algorithm
 	using namespace stl_reader;
 
-	this->options = new LungSegOptions();
-	this->params = new LungSegParams();
+	this->options = std::make_shared<LungSegOptions>();
+	this->params = std::make_shared<LungSegParams>();
 
 	bool node_file_done = false, element_file_done = false;
 	size_t node_file_index, el_file_index;
@@ -229,7 +250,8 @@ LungSegmentation::LungSegmentation(int argc, char *argv[])
 	ext[3] = "params";
 
 	this->options->get_filenames_from_args(ext, argc, argv);
-
+	//extract all filenames
+	//find node and element files from PTK and process
 	for(size_t n = 0; n < this->options->count_files_with_ext("txt"); n++)
 	{
 		std::vector<std::string> fname_split = string_split(this->options->get_filename("txt", n), ".");
@@ -246,11 +268,11 @@ LungSegmentation::LungSegmentation(int argc, char *argv[])
 			element_file_done = true;
 		}
 	}
-
+	//find and process stl files
 	unsigned stl_files_done = 0;
 	for(size_t n = 0; n < this->options->count_files_with_ext("stl"); n++)
 	{
-		this->lobe_meshes.push_back(new LobeMesh(this->options->get_filename("stl", n), 
+		this->lobe_meshes.push_back(std::make_shared<LobeMesh>(this->options->get_filename("stl", n), 
 									((size_t) this->params->get_param<int>(NUMBER_MESH_BINS_KEY)->get_value())));
 		stl_files_done++;
 	}
@@ -261,6 +283,7 @@ LungSegmentation::LungSegmentation(int argc, char *argv[])
 		{
 			if(stl_files_done > 0)
 			{
+				//build tree
 				this->tree = this->read_PTK_node_and_element_files(this->options->get_filename("txt", node_file_index),
 					                                                this->options->get_filename("txt", el_file_index));
 			}
@@ -281,14 +304,16 @@ LungSegmentation::LungSegmentation(int argc, char *argv[])
 		std::cout << "Error, no node file found.\n";
 		abort_on_failure();
 	}
-
+	//read options and param files
 	if(this->options->filename_exists("options")) this->options->read_file(this->options->get_filename("options"));
 	if(this->options->filename_exists("params")) this->params->read_file(this->options->get_filename("params"));
+	//set up segmentation
 	this->initialise();
 }
 
-LungSegNetwork* LungSegmentation::read_PTK_node_and_element_files(const std::string & node_fname, const std::string & el_fname)
+std::shared_ptr<LungSegNetwork> LungSegmentation::read_PTK_node_and_element_files(const std::string & node_fname, const std::string & el_fname)
 {
+	//get info from PTK output files
 	using namespace std;
 	
 	vector<vector<double>> node_file_lines;
@@ -308,11 +333,11 @@ LungSegNetwork* LungSegmentation::read_PTK_node_and_element_files(const std::str
 	{
 		cout << "Problem: node file has wrong number of lines.\n";
 	}
-	map<long int, network::Node*> node_map;
+	map<long int, std::shared_ptr<network::Node>> node_map;
 	map<long int, double> node_radii;
 	for(size_t l = 1; l <= Nnodes; l++)
 	{
-		node_map[((long int) node_file_lines[l][0])] = new network::Node(node_file_lines[l][1], node_file_lines[l][2],
+		node_map[((long int) node_file_lines[l][0])] = std::make_shared<network::Node>(node_file_lines[l][1], node_file_lines[l][2],
 			                                                             node_file_lines[l][3]);
 		node_radii[((long int) node_file_lines[l][0])] = node_file_lines[l][4];
 	}
@@ -333,22 +358,23 @@ LungSegNetwork* LungSegmentation::read_PTK_node_and_element_files(const std::str
 		cout << "Problem, node and edge files do not match.\n";
 		abort_on_failure();
 	}
-	map<long int, network::Edge<network::Node>*> edge_map;
-	for(size_t l = 1; l < edge_file_lines.size(); l++)
+	map<long int, std::shared_ptr<network::Edge<network::Node>>> edge_map;
+	for(long int l = 1; l < ((long int) edge_file_lines.size()); l++)
 	{
 		if(edge_file_lines[l][0] != edge_file_lines[l][1]) //ignore loop edges 
 		{
-			edge_map[l] = new network::Edge<network::Node>(node_map[edge_file_lines[l][0]],
+			edge_map[l] = std::make_shared<network::Edge<network::Node>>(node_map[edge_file_lines[l][0]],
 				                                           node_map[edge_file_lines[l][1]], 1.0,
 														   node_radii[edge_file_lines[l][1]]);
 		}
 	}
 
-	return (new LungSegNetwork(node_map,edge_map));
+	return (std::make_shared<LungSegNetwork>(node_map,edge_map));
 }
 
 void LungSegmentation::build_tree()
 {
+	//code to build whole airway tree using PTK outputs
 	using namespace std;
 
 	//assign terminal edges to segmented regions
@@ -357,21 +383,38 @@ void LungSegmentation::build_tree()
 	for(size_t k = this->tree->get_first_term_index(); k < this->tree->count_nodes(); k++)
 	{
 		bool assigned = false;
-		for(size_t n = 0; n < this->count_lobes(); n++)
+		int iterations = 0;
+		while(!assigned && iterations < 10)
 		{
-			if(this->get_lobe(n)->is_in(this->tree->get_node(k)->get_pos()))
+			for(size_t n = 0; n < this->count_lobes(); n++)
 			{
-				lobe_termnodes[n].push_back(tree->get_node(k));
-				assigned = true;
+				if(this->get_lobe(n)->is_in(this->tree->get_node(k)->get_pos()))
+				{
+					lobe_termnodes[n].push_back(tree->get_node(k));
+					assigned = true;
+				}
 			}
+			if(assigned == false)
+			{
+				cout << "Warning, node " << k << " not assigned to lobe, extending branch.\n";
+				size_t j = this->tree->get_edge_in_index(k,0);   //find edge in
+				size_t k_in =  this->tree->get_node_in_index(j);  //find node in
+				network::Position sep = this->tree->get_node(k)->get_pos() - this->tree->get_node(k_in)->get_pos();
+				this->tree->get_node(k)->set_pos(this->tree->get_node(k_in)->get_pos() + sep*1.01);  //move along by 10%
+				this->tree->get_edge(j)->update_length_from_nodes(); //update branch length
+				cout << "New pos of node " << k << " is (" << this->tree->get_node(k)->get_pos().x[0] << ',' 
+					 << this->tree->get_node(k)->get_pos().x[1] << ',' << this->tree->get_node(k)->get_pos().x[2] << ").\n";
+					 
+			}
+			iterations++;
 		}
-		if(assigned == false)
+		if(!assigned)
 		{
-			cout << "Warning, node " << k << " not assigned to lobe.\n";
+			cout << "Error, node " << k << " not assigned to lobe.\n";
 		}
 	}
 
-	vector<vector<network::Position*>> point_clouds;
+	vector<vector<std::shared_ptr<network::Position>>> point_clouds;
 	point_clouds.resize(this->count_lobes());
 	for(size_t nl = 0; nl < this->count_lobes(); nl++)
 	{
@@ -393,14 +436,15 @@ void LungSegmentation::build_tree()
 				double rand0 = 2*(rand() - 0.5) / ((double) RAND_MAX);
 				double rand1 = 2*(rand() - 0.5) / ((double) RAND_MAX);
 				double rand2 = 2*(rand() - 0.5) / ((double) RAND_MAX);
-				network::Position pt = this->get_minpos() + network::Position((i + 0.01*rand0)*h, (j + 0.01*rand1)*h, (k + 0.01*rand2)*h);
+				std::shared_ptr<network::Position> pt = std::make_shared<network::Position>(this->get_minpos() + 
+					                   network::Position((i + 0.01*rand0)*h, (j + 0.01*rand1)*h, (k + 0.01*rand2)*h));
 				size_t nl = 0;
 				bool not_found = true;
 				while(not_found && nl < this->count_lobes())
 				{
-					if(this->get_lobe(nl)->is_in(pt))
+					if(this->get_lobe(nl)->is_in(*pt))
 					{
-						point_clouds[nl].push_back(new network::Position(pt));
+						point_clouds[nl].push_back(pt);
 						not_found = false;
 					}
 					nl++;
@@ -416,14 +460,11 @@ void LungSegmentation::build_tree()
 	size_t pi = 0;
 	for(size_t n = 0; n < this->count_lobes(); n++)
 	{
-		pi += this->tree->grow_lobe(this->lobe_meshes[n], h, lobe_termnodes[n], this->options->get_option<bool>(PRUNE_TERM_BRANCHES_KEY)->get_value(),
+		cout << "Growing lobe " << this->get_lobe(n)->get_id() << endl;
+		pi += this->tree->grow_lobe(this->lobe_meshes[n].get(), h, lobe_termnodes[n], this->options->get_option<bool>(PRUNE_TERM_BRANCHES_KEY)->get_value(),
 			                  this->options->get_option<bool>(REASSIGN_KEY)->get_value(), this->params->get_param<double>(DISTANCE_TO_COM_FACTOR_KEY)->get_value(),
 							  this->params->get_param<double>(MAX_BRANCHING_ANGLE_KEY)->get_value(), this->params->get_param<double>(LENGTH_CUTOFF_MM_KEY)->get_value(), pi);
 	}
-
-	//sort out network
-	this->tree->update_node_edge_maps();
-	if(this->tree->reorder_network()) abort_on_failure();
 	this->tree->fill_in_radii();
 }
 
@@ -431,11 +472,13 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 							   const bool & prune, const bool & reassign, const double & l_factor,
 							   const double & max_angle, const double & l_cutoff, const size_t & prev_iter)
 {
+	//function for growing airways in a signle lobe
 	using namespace network;
 
 	//prune terminal edges as their lengths are unreliable
 	std::vector<size_t> start_node;
 	std::vector<Position> sn_position;
+	std::cout << tnodes.size() << std::endl;
 	start_node.resize(tnodes.size());
 	sn_position.resize(tnodes.size());
 	for(size_t kt = 0; kt < tnodes.size(); kt++)
@@ -463,14 +506,15 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 	}
 
 	PointCloud total_pt_cloud = *(mesh->pt_cloud);
-	std::vector<PointCloud*> sn_point_cloud = total_pt_cloud.partition_point_cloud(sn_position);
+	std::vector<std::shared_ptr<PointCloud>> sn_point_cloud;
+	total_pt_cloud.partition_point_cloud(sn_position, sn_point_cloud);
 	size_t iter = 0;
 	while(start_node.size() > 0)
 	{
 		std::vector<size_t> next_start_node;
 		std::vector<Position> next_sn_position;
 		next_start_node.reserve(2*start_node.size());
-		std::vector<PointCloud*> next_point_clouds;
+		std::vector<std::shared_ptr<PointCloud>> next_point_clouds;
 		if(!reassign) next_point_clouds.reserve(2*start_node.size());
 
 		std::vector<Position> sn_parent_dir, sn_grandparent_dir;
@@ -499,15 +543,18 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 			else plane_norm = com_dir.cross(sn_grandparent_dir[isn]);
 			plane_norm.normalise();
 
-			std::vector<PointCloud*> split_cloud = sn_point_cloud[isn]->split_point_cloud(sn_point_cloud[isn]->get_com(), plane_norm);
+			std::vector<std::shared_ptr<PointCloud>> split_cloud;
+			sn_point_cloud[isn]->split_point_cloud(sn_point_cloud[isn]->get_com(), plane_norm, split_cloud);
 			for(size_t ic = 0; ic < split_cloud.size(); ic++)
 			{
 
 				Position new_com_vect = split_cloud[ic]->get_com() - sn_position[isn];
 				//add new node in com direction
-				this->NodeVec.push_back(new Node(sn_position[isn] +  new_com_vect * l_factor));
+				std::shared_ptr<Node> no = std::make_shared<Node>(sn_position[isn] +  new_com_vect * l_factor);
+				this->NodeVec.push_back(no);
 				//add connecting edge
-				this->EdgeVec.push_back(new Edge<Node>(this->get_node(start_node[isn]), this->NodeVec.back(), 1, -1.0));   //set rad at -1.0 as flag
+				std::shared_ptr<Edge<Node>> ed = std::make_shared<Edge<Node>>(this->NodeVec[start_node[isn]], this->NodeVec.back(), 1, -1.0);
+				this->EdgeVec.push_back(ed);   //set rad at -1.0 as flag
 				//check branching angle
 				double br = new_com_vect.angle(sn_parent_dir[isn]);
 				if(this->NodeVec.back()->get_pos().x[0] != this->NodeVec.back()->get_pos().x[0])
@@ -551,13 +598,13 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 		//otherwise -> next point clouds are those from splitting algorithm (already filled)
 		if(reassign) 
 		{
-			sn_point_cloud = total_pt_cloud.partition_point_cloud(sn_position);
+			total_pt_cloud.partition_point_cloud(sn_position, sn_point_cloud);
 			//if using reassign option it is possible that a cloud can have < 2 pts -> make these terminal 
 			bool any_removed = true;
 			while(any_removed)
 			{
 				any_removed = false;
-				for(long int ipc = sn_point_cloud.size()-1; ipc >= 0; ipc--)
+				for(long int ipc = ((long int) sn_point_cloud.size())-1; ipc >= 0; ipc--)
 				{
 					if(sn_point_cloud[ipc]->point_count() < 2)
 					{
@@ -568,7 +615,7 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 						if(!any_removed) any_removed = true;
 					}
 				}
-				if(any_removed) sn_point_cloud = total_pt_cloud.partition_point_cloud(sn_position);
+				if(any_removed) total_pt_cloud.partition_point_cloud(sn_position, sn_point_cloud);
 			}
 		}
 		else sn_point_cloud = next_point_clouds;
@@ -585,22 +632,16 @@ size_t LungSegNetwork::grow_lobe(LobeMesh* mesh, const double & cloud_h, const s
 	return iter;
 }
 
-void LungSegNetwork::print_step_by_step(const std::vector<size_t> & end_nodes, const std::vector<PointCloud*> & pt_clouds, const size_t & num, const std::string lobe_id, const double & cloud_h) const
+void LungSegNetwork::print_step_by_step(const size_t & num) const
 {
 	std::stringstream ss;
 	ss << "tree_iter" << num;
 	this->print_vtk(ss.str().c_str(), 1.0);
-
-	//ss.clear();
-	//ss.str("");
-	//ss << "lobe_vol_" << lobe_id << "_iter" << num << ".vtk";
-	//std::string fname = ss.str().c_str();
-
-	//output here
 }
 
 void LungSegNetwork::fill_in_radii()
 {
+	//fill in all branch radii for airways descended from CT airways
 	//loop over weibel orders, track order and radius of last ancestor that had one
 	std::vector<size_t> parent_horsfield_gen;
 	parent_horsfield_gen.resize(this->count_edges());
@@ -653,11 +694,13 @@ void LungSegNetwork::fill_in_radii()
 
 }
 
-std::vector<PointCloud*> PointCloud::partition_point_cloud(const std::vector<network::Position> & pos_to_be_assigned) const
+void PointCloud::partition_point_cloud(const std::vector<network::Position> & pos_to_be_assigned, 
+									   std::vector<std::shared_ptr<PointCloud>> & partitioned_cloud) const
 {
+	//assign points in cloud to nearest point in the list "pos_to_be_assigned"
 	using namespace std;
 
-	vector<vector<network::Position*>> ptd_point_cloud;
+	vector<vector<std::shared_ptr<network::Position>>> ptd_point_cloud;
 	ptd_point_cloud.resize(pos_to_be_assigned.size());
 	
 	for(size_t icloud = 0; icloud < this->cloud.size(); icloud++)
@@ -676,22 +719,20 @@ std::vector<PointCloud*> PointCloud::partition_point_cloud(const std::vector<net
 		ptd_point_cloud[ipt_closest].push_back(this->cloud[icloud]);
 	}
 
-	vector<PointCloud*> partitioned_cloud;
 	partitioned_cloud.resize(pos_to_be_assigned.size());
-
 	for(size_t ipt = 0; ipt < pos_to_be_assigned.size(); ipt++)
 	{
-		partitioned_cloud[ipt] = new PointCloud(ptd_point_cloud[ipt]);
+		partitioned_cloud[ipt] = std::make_shared<PointCloud>(ptd_point_cloud[ipt]);
 	}
-
-	return partitioned_cloud;
 }
 
-std::vector<PointCloud*> PointCloud::split_point_cloud(const network::Position & plane_pt, const network::Position & plane_norm) const
+void PointCloud::split_point_cloud(const network::Position & plane_pt, const network::Position & plane_norm,
+								   std::vector<std::shared_ptr<PointCloud>> & partitioned_cloud) const
 {
+	//Split the point cloud in two by the plane given
 	using namespace std;
 
-	vector<vector<network::Position*>> split_pt_cloud;
+	vector<vector<std::shared_ptr<network::Position>>> split_pt_cloud;
 	split_pt_cloud.resize(2);
 	if(this->cloud.size() == 2)
 	{
@@ -707,24 +748,22 @@ std::vector<PointCloud*> PointCloud::split_point_cloud(const network::Position &
 			else split_pt_cloud[1].push_back(this->cloud[icloud]);
 		}
 	}
-	vector<PointCloud*> partitioned_cloud;
-	partitioned_cloud.resize(2);
 
+	partitioned_cloud.resize(2);
 	for(size_t ipt = 0; ipt < 2; ipt++)
 	{
-		partitioned_cloud[ipt] = new PointCloud(split_pt_cloud[ipt]);
+		partitioned_cloud[ipt] = std::make_shared<PointCloud>(split_pt_cloud[ipt]);
 	}
 
 	if(partitioned_cloud[0]->point_count() == 0 || partitioned_cloud[1]->point_count() == 0)
 	{
 		std::cout << "Pause\n";
 	}
-
-	return partitioned_cloud;
 }
 
 network::Position new_angle_calc(const network::Position & prev_vec, const network::Position & parent_dir, const double & max_angle)
 {
+	//rotate vector so that its angle with parent_dir is equal to the max_angle
 	using namespace network;
 
 	double theta = max_angle - prev_vec.angle(parent_dir);   //rotation angle (negative)

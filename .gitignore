@@ -11,3 +11,9 @@
 *.sln
 *.filters
 *.user
+*.py
+*.tlog
+*.ilk
+*.lastbuildstate
+*.idb
+*.opensdf
