@@ -1,0 +1,5 @@
+%Comments start with a %
+Total_acini 30000     %Total number of acini to aim for (integer)
+Distance_factor 0.4   %Distance fraction used in branching algorithm
+Max_branching_angle 1.0472  %Maximum branching angle in radians
+Length_cutoff 1.0   %Branch length cutoff mm (branching will stop for any branch shorter than this)

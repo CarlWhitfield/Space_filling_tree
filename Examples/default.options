@@ -1,0 +1,4 @@
+%Comments begin with a %
+Prune f   %True t or false f: prune and re-grow terminal CT branches in same direction
+Reassign t    % True t or false f: reassign point cloud to  nearest terminal node on each iteration. If false, points are not reassigned.
+
